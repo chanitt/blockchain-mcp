@@ -8,7 +8,7 @@ const API_BASE_URL = "https://docs-demo.quiknode.pro"; // ETH
 const USER_AGENT = "ftm-mcp-server/1.0";
 
 // Helper function for making JSON-RPC requests
-async function makeEthRpcRequest<T>(method: string, params: any[]): Promise<T | null> {
+async function makeEthRpcRequest<T>(method: string, params: any[], id: number = 1): Promise<T | null> {
     try {
         const response = await fetch(API_BASE_URL, {
             method: "POST",
@@ -20,7 +20,7 @@ async function makeEthRpcRequest<T>(method: string, params: any[]): Promise<T | 
                 jsonrpc: "2.0",
                 method,
                 params,
-                id: 1,
+                id: id,
             }),
         });
         if (!response.ok) {
@@ -157,6 +157,436 @@ server.tool(
         };
     }
 );
+
+server.tool(
+    "get-logs",
+    "Fetch logs for a contract within a given block range",
+    {
+        fromBlock: z.string().default("latest").describe('Start block (e.g. "earliest", "latest", or hex block number)'),
+        toBlock: z.string().default("latest").describe('End block (e.g. "latest", or hex block number)'),
+        address: z.string().length(42).startsWith("0x").describe("Contract address to get logs from"),
+        topics: z.array(z.string()).optional().describe("List of topics (optional, ordered)"),
+    },
+    async ({ fromBlock, toBlock, address, topics }) => {
+        const filter = {
+            fromBlock,
+            toBlock,
+            address,
+            ...(topics ? { topics } : {}),
+        };
+
+        const rpcResult = await makeEthRpcRequest<{ result?: any[]; error?: any }>("eth_getLogs", [filter]);
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to fetch logs: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        if (rpcResult.result!.length === 0) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `No logs found for address ${address} from block ${fromBlock} to ${toBlock}.`,
+                    },
+                ],
+            };
+        }
+
+        return {
+            content: rpcResult.result!.map((log, idx) => ({
+                type: "text",
+                text: `Log ${idx + 1}:\nBlock: ${log.blockNumber}\nTxHash: ${log.transactionHash}\nTopics: ${log.topics.join(
+                    ", "
+                )}\nData: ${log.data}`,
+            })),
+        };
+    }
+);
+
+
+server.tool(
+    "get-new-filter",
+    "Creates a log filter for tracking state changes",
+    {
+        fromBlock: z.string().default("latest").describe('Start block (e.g. "earliest", "latest", or hex block number)'),
+        toBlock: z.string().default("latest").describe('End block (e.g. "latest", or hex block number)'),
+        address: z.string().length(42).startsWith("0x").describe("Contract address to get logs from"),
+        topics: z.array(z.string()).optional().describe("List of topics (optional, ordered)"),
+    },
+    async ({ fromBlock, toBlock, address, topics }) => {
+        const filterParams: any = {
+          fromBlock,
+          toBlock,
+          address,
+          ...(topics ? { topics } : {}),
+        };
+
+        const filterCreation = await makeEthRpcRequest<{ result?: string; error?: any }>(
+          "eth_newFilter",
+          [filterParams]
+        );
+    
+        if (!filterCreation || filterCreation.error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Failed to create filter: ${filterCreation?.error?.message || "Unknown error"}`,
+              },
+            ],
+          };
+        }
+    
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Filter ID: ${filterCreation.result}`,
+            },
+          ],
+        };
+      }
+);
+
+server.tool(
+    "get-new-block-filter",
+    "Creates a filter to detect new block arrivals.",
+    async ({ }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+            "eth_newBlockFilter",
+            [],
+            67
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to create block filter: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `New block filter created.\nFilter ID: ${rpcResult.result}`,
+                },
+            ],
+        };
+    }
+);
+
+server.tool(
+    "get-new-pending-tran-filter",
+    "Creates a filter to detect new pending transaction",
+    async ({ }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+            "eth_newBlockFilter",
+            [],
+            67
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to create new pending transcation filter: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Filter ID: ${rpcResult.result}`,
+                },
+            ],
+        };
+    }
+);
+
+server.tool(
+    "get-filter-changes",
+    "Polls a filter to get new logs, block hashes, or transaction hashes since the last check.",
+    {
+      filterId: z.string().min(1).describe("The filter ID returned from eth_newFilter, eth_newBlockFilter, or eth_newPendingTransactionFilter"),
+    },
+    async ({ filterId }) => {
+      const rpcResult = await makeEthRpcRequest<{ result?: any[]; error?: any }>(
+        "eth_getFilterChanges",
+        [filterId]
+      );
+  
+      if (!rpcResult || rpcResult.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get filter changes: ${rpcResult?.error?.message || "Unknown error"}`,
+            },
+          ],
+        };
+      }
+  
+      const changes = rpcResult.result || [];
+  
+      if (changes.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No changes found for filter ID ${filterId}.`,
+            },
+          ],
+        };
+      }
+  
+      return {
+        content: changes.map((change, idx) => ({
+          type: "text",
+          text: `Change ${idx + 1}:\n${JSON.stringify(change, null, 2)}`,
+        })),
+      };
+    }
+  );
+  
+  server.tool(
+    "get-filter-logs",
+    "Polls a filter to get all logs matching the filter ID.",
+    {
+      filterId: z.string().min(1).describe("The filter ID returned from eth_newFilter, eth_newBlockFilter, or eth_newPendingTransactionFilter"),
+    },
+    async ({ filterId }) => {
+      const rpcResult = await makeEthRpcRequest<{ result?: any[]; error?: any }>(
+        "eth_getFilterLogs",
+        [filterId]
+      );
+  
+      if (!rpcResult || rpcResult.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to get logs for filter ID ${filterId}: ${rpcResult?.error?.message || "Unknown error"}`,
+            },
+          ],
+        };
+      }
+  
+      const logs = rpcResult.result || [];
+  
+      if (logs.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No logs found for filter ID ${filterId}.`,
+            },
+          ],
+        };
+      }
+  
+      return {
+        content: logs.map((log, idx) => ({
+          type: "text",
+          text: `Log ${idx + 1}:\n${JSON.stringify(log, null, 2)}`,
+        })),
+      };
+    }
+  );
+  
+  server.tool(
+    "uninstall-filter",
+    "Uninstalls a filter with the given filter ID.",
+    {
+      filterId: z.string().min(1).describe("The filter ID to uninstall"),
+    },
+    async ({ filterId }) => {
+      const rpcResult = await makeEthRpcRequest<{ result?: boolean; error?: any }>(
+        "eth_uninstallFilter",
+        [filterId]
+      );
+  
+      if (!rpcResult || rpcResult.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to uninstall filter ID ${filterId}: ${rpcResult?.error?.message || "Unknown error"}`,
+            },
+          ],
+        };
+      }
+  
+      const success = rpcResult.result;
+  
+      if (success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully uninstalled filter ID ${filterId}.`,
+            },
+          ],
+        };
+      } else {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to uninstall filter ID ${filterId}.`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "submit-proof-of-work",
+    "Submits a proof-of-work solution to the network.",
+    {
+      nonce: z.string().min(1).describe("The nonce found during mining"),
+      hash: z.string().min(1).describe("The header's PoW hash"),
+      digest: z.string().min(1).describe("The mix digest"),
+    },
+    async ({ nonce, hash, digest }) => {
+      const rpcResult = await makeEthRpcRequest<{ result?: boolean; error?: any }>(
+        "eth_submitWork",
+        [nonce, hash, digest]
+      );
+  
+      if (!rpcResult || rpcResult.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to submit PoW solution: ${rpcResult?.error?.message || "Unknown error"}`,
+            },
+          ],
+        };
+      }
+  
+      const success = rpcResult.result;
+  
+      if (success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully submitted PoW solution.`,
+            },
+          ],
+        };
+      } else {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to submit PoW solution. Invalid solution.`,
+            },
+          ],
+        };
+      }
+    }
+  );
+  
+  server.tool(
+    "get-client-version",
+    "Fetches the current version of the Ethereum client.",
+    async () => {
+      const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+        "web3_clientVersion",
+        []
+      );
+  
+      if (!rpcResult || rpcResult.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to fetch client version: ${rpcResult?.error?.message || "Unknown error"}`,
+            },
+          ],
+        };
+      }
+  
+      const version = rpcResult.result;
+  
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Current Ethereum client version: ${version}`,
+          },
+        ],
+      };
+    }
+  );
+
+  server.tool(
+    "get-sha3-hash",
+    "Generates a Keccak-256 (SHA3) hash of the given hexadecimal data.",
+    {
+      data: z.string().min(1).describe("The data in hexadecimal form to convert into a SHA3 hash"),
+    },
+    async ({ data }) => {
+      // Ensure the data is in valid hexadecimal format (optional, for validation)
+      if (!/^0x[0-9A-Fa-f]*$/.test(data)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Invalid hexadecimal input. Ensure the data starts with '0x' and contains only hexadecimal characters.",
+            },
+          ],
+        };
+      }
+  
+      const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+        "web3_sha3",
+        [data]
+      );
+  
+      if (!rpcResult || rpcResult.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to compute SHA3 hash: ${rpcResult?.error?.message || "Unknown error"}`,
+            },
+          ],
+        };
+      }
+  
+      const sha3Hash = rpcResult.result;
+  
+      return {
+        content: [
+          {
+            type: "text",
+            text: `SHA3 (Keccak-256) hash of the provided data: ${sha3Hash}`,
+          },
+        ],
+      };
+    }
+  );
+  
+  
 
 // Start the server
 async function main() {
