@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import checkValidHexadecimal from "./utils/type-check.js";
 
 const API_BASE_URL = "https://docs-demo.quiknode.pro"; // ETH
 // const API_BASE_URL = "https://rpc.soniclabs.com"; // SONIC
@@ -158,6 +159,7 @@ server.tool(
     }
 );
 
+// eth_getLogs tool
 server.tool(
     "get-logs",
     "Fetch logs for a contract within a given block range",
@@ -210,7 +212,7 @@ server.tool(
     }
 );
 
-
+// eth_newFilter tool
 server.tool(
     "get-new-filter",
     "Creates a log filter for tracking state changes",
@@ -255,6 +257,7 @@ server.tool(
       }
 );
 
+// eth_newBlockFilter tool
 server.tool(
     "get-new-block-filter",
     "Creates a filter to detect new block arrivals.",
@@ -287,6 +290,7 @@ server.tool(
     }
 );
 
+// eth_newPendingTransactionFilter tool
 server.tool(
     "get-new-pending-tran-filter",
     "Creates a filter to detect new pending transaction",
@@ -319,6 +323,7 @@ server.tool(
     }
 );
 
+// eth_getFilterChanges tool
 server.tool(
     "get-filter-changes",
     "Polls a filter to get new logs, block hashes, or transaction hashes since the last check.",
@@ -364,6 +369,7 @@ server.tool(
     }
   );
   
+// eth_getFilterLogs tool
   server.tool(
     "get-filter-logs",
     "Polls a filter to get all logs matching the filter ID.",
@@ -409,6 +415,7 @@ server.tool(
     }
   );
   
+// eth_uninstallFilter tool
   server.tool(
     "uninstall-filter",
     "Uninstalls a filter with the given filter ID.",
@@ -431,31 +438,22 @@ server.tool(
           ],
         };
       }
-  
-      const success = rpcResult.result;
-  
-      if (success) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Successfully uninstalled filter ID ${filterId}.`,
-            },
-          ],
-        };
-      } else {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Failed to uninstall filter ID ${filterId}.`,
-            },
-          ],
-        };
-      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: rpcResult.result?
+                                `Successfully uninstalled filter ID ${filterId}.`
+                                :`Failed to uninstall filter ID ${filterId}.`
+          },
+        ],
+      };
+      
     }
   );
 
+// eth_submitWork tool
   server.tool(
     "submit-proof-of-work",
     "Submits a proof-of-work solution to the network.",
@@ -480,31 +478,21 @@ server.tool(
           ],
         };
       }
-  
-      const success = rpcResult.result;
-  
-      if (success) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Successfully submitted PoW solution.`,
-            },
-          ],
-        };
-      } else {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Failed to submit PoW solution. Invalid solution.`,
-            },
-          ],
-        };
-      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: rpcResult.result?
+                                "Successfully submitted PoW solution."
+                                :"Failed to submit PoW solution. Invalid solution."
+          },
+        ],
+      };
     }
   );
   
+// web3_clientVersion tool
   server.tool(
     "get-client-version",
     "Fetches the current version of the Ethereum client.",
@@ -525,19 +513,18 @@ server.tool(
         };
       }
   
-      const version = rpcResult.result;
-  
       return {
         content: [
           {
             type: "text",
-            text: `Current Ethereum client version: ${version}`,
+            text: `Current Ethereum client version: ${rpcResult.result}`,
           },
         ],
       };
     }
   );
 
+// web3_sha3 tool
   server.tool(
     "get-sha3-hash",
     "Generates a Keccak-256 (SHA3) hash of the given hexadecimal data.",
@@ -545,8 +532,7 @@ server.tool(
       data: z.string().min(1).describe("The data in hexadecimal form to convert into a SHA3 hash"),
     },
     async ({ data }) => {
-      // Ensure the data is in valid hexadecimal format (optional, for validation)
-      if (!/^0x[0-9A-Fa-f]*$/.test(data)) {
+      if (checkValidHexadecimal(data)) {
         return {
           content: [
             {
@@ -573,13 +559,11 @@ server.tool(
         };
       }
   
-      const sha3Hash = rpcResult.result;
-  
       return {
         content: [
           {
             type: "text",
-            text: `SHA3 (Keccak-256) hash of the provided data: ${sha3Hash}`,
+            text: `SHA3 (Keccak-256) hash of the provided data: ${rpcResult.result}`,
           },
         ],
       };
