@@ -52,7 +52,7 @@ function formatNumber(num: bigint): string {
     return num.toLocaleString();
 }
 
-// get-balance tool
+// eth_getBalance tool
 server.tool(
     "get-balance",
     "Get the ETH balance of a given account address in wei",
@@ -91,7 +91,7 @@ server.tool(
     }
 );
 
-// get-block-number tool
+// eth_blockNumber tool
 server.tool(
     "get-block-number",
     "Get the latest block number",
@@ -125,7 +125,7 @@ server.tool(
     }
 );
 
-// get-gas-price tool
+// eth_gasPrice tool
 server.tool(
     "get-gas-price",
     "Get the latest gas price",
@@ -155,6 +155,149 @@ server.tool(
                     text: `Latest gas price: ${formatGwei(latestGasPrice)} (${latestGasPrice.toLocaleString()} wei)`,
                 },
             ],
+        };
+    }
+);
+
+// eth_getTransactionByHash tool
+server.tool(
+    "get-transaction",
+    "Get transaction details by hash",
+    {
+        transactionHash: z.string()
+            .length(66)
+            .startsWith("0x")
+            .regex(/^0x[a-fA-F0-9]{64}$/)
+            .describe("Ethereum transaction hash (0x followed by 64 hex characters)"),
+    },
+    async ({ transactionHash }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
+            "eth_getTransactionByHash",
+            [transactionHash]
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [{
+                    type: "text",
+                    text: `Failed to fetch transaction: ${rpcResult?.error?.message || "Unknown error"}`
+                }]
+            };
+        }
+
+        const tx = rpcResult.result;
+        
+        if (!tx) {
+            return {
+                content: [{
+                    type: "text",
+                    text: "Transaction not found"
+                }]
+            };
+        }
+
+        const formattedTx = {
+            hash: tx.hash,
+            blockNumber: tx.blockNumber ? parseInt(tx.blockNumber, 16) : "Pending",
+            from: tx.from,
+            to: tx.to || "Contract Creation",
+            value: tx.value ? `${formatEth(BigInt(tx.value))} ETH` : "0 ETH",
+            gas: parseInt(tx.gas, 16),
+            gasPrice: tx.gasPrice ? `${formatGwei(BigInt(tx.gasPrice))} Gwei` : "N/A",
+            nonce: parseInt(tx.nonce, 16),
+            input: tx.input || "0x"
+        };
+
+        return {
+            content: [{
+                type: "text",
+                text: `Transaction Details:
+                Hash: ${formattedTx.hash}
+                Block: ${formattedTx.blockNumber}
+                From: ${formattedTx.from}
+                To: ${formattedTx.to}
+                Value: ${formattedTx.value}
+                Gas: ${formattedTx.gas}
+                Gas Price: ${formattedTx.gasPrice}
+                Nonce: ${formattedTx.nonce}
+                Input Data: ${formattedTx.input}`
+            }]
+        };
+    }
+);
+
+// eth_getTransactionByBlockHashAndIndex tool
+server.tool(
+    "get-transaction-by-block",
+    "Get transaction by block hash and index",
+    {
+        blockHash: z.string()
+            .length(66)
+            .startsWith("0x")
+            .regex(/^0x[a-fA-F0-9]{64}$/)
+            .describe("Ethereum block hash (0x followed by 64 hex characters)"),
+        
+        transactionIndex: z.string()
+            .startsWith("0x")
+            .regex(/^0x[0-9a-fA-F]+$/)
+            .describe("Transaction index position in the block (hex string)")
+    },
+    async ({ blockHash, transactionIndex }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
+            "eth_getTransactionByBlockHashAndIndex",
+            [blockHash, transactionIndex]
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [{
+                    type: "text",
+                    text: `Failed to fetch transaction: ${rpcResult?.error?.message || "Unknown error"}`
+                }]
+            };
+        }
+
+        const tx = rpcResult.result;
+        
+        if (!tx) {
+            return {
+                content: [{
+                    type: "text",
+                    text: "Transaction not found at specified block position"
+                }]
+            };
+        }
+
+        const formattedTx = {
+            hash: tx.hash,
+            blockNumber: parseInt(tx.blockNumber, 16),
+            blockHash: tx.blockHash,
+            transactionIndex: parseInt(tx.transactionIndex, 16),
+            from: tx.from,
+            to: tx.to || "Contract Creation",
+            value: tx.value ? `${formatEth(BigInt(tx.value))} ETH` : "0 ETH",
+            gas: parseInt(tx.gas, 16),
+            gasPrice: tx.gasPrice ? `${formatGwei(BigInt(tx.gasPrice))} Gwei` : "N/A",
+            nonce: parseInt(tx.nonce, 16),
+            input: tx.input || "0x"
+        };
+
+        return {
+            content: [{
+                type: "text",
+                text: `Transaction Details:
+                Hash: ${formattedTx.hash}
+                Block Number: ${formattedTx.blockNumber}
+                Block Hash: ${formattedTx.blockHash}
+                Position in Block: ${formattedTx.transactionIndex}
+                From: ${formattedTx.from}
+                To: ${formattedTx.to}
+                Value: ${formattedTx.value}
+                Gas: ${formattedTx.gas}
+                Gas Price: ${formattedTx.gasPrice}
+                Nonce: ${formattedTx.nonce}
+                Input Data: ${formattedTx.input}`
+            }]
         };
     }
 );
