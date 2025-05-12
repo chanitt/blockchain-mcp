@@ -106,9 +106,166 @@ server.tool(
             content: [
                 {
                     type: "text",
-                    text: `ETH balance for ${address} at block "${blockNumber || "latest"
-                        }":\n${formatEth(balanceWei)} (${balanceWei.toLocaleString()} wei)`,
-                    // text: `${rpcResult.result}`,
+                    text: `ETH balance for ${address} at block "${blockNumber || "latest"}":${formatEth(balanceWei)} (${balanceWei.toLocaleString()} wei)`,
+                },
+            ],
+        };
+    }
+);
+
+// eth_getCode tool
+server.tool(
+    "get-contract-code",
+    "Get the bytecode of a smart contract at a given address",
+    {
+        address: z
+            .string()
+            .length(42)
+            .startsWith("0x")
+            .describe("Ethereum address (0x...)"),
+        blockNumber: z
+            .string()
+            .optional()
+            .default("latest")
+            .describe(
+                "Block tag (e.g. latest, earliest, pending, or a hex block number)"
+            ),
+    },
+    async ({ address, blockNumber }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+            "eth_getCode",
+            [address, blockNumber || "latest"]
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to retrieve contract code: ${rpcResult?.error?.message || "Unknown error"
+                            }`,
+                    },
+                ],
+            };
+        }
+
+        const code = rpcResult.result || "0x";
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Contract code from ${address} (block ${blockNumber || "latest"}):\n${code}`,
+                },
+            ],
+        };
+    }
+);
+
+// eth_getStorageAt tool
+server.tool(
+    "get-storage-at",
+    "Get the value from a storage position at a given address",
+    {
+        address: z
+            .string()
+            .length(42)
+            .startsWith("0x")
+            .describe("Ethereum address (0x...)"),
+        position: z
+            .string()
+            .startsWith("0x")
+            .describe("Hex-encoded position of the storage slot"),
+        blockNumber: z
+            .string()
+            .optional()
+            .default("latest")
+            .describe("Block tag (e.g. latest, earliest, pending, or a hex block number)"),
+    },
+    async ({ address, position, blockNumber }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+            "eth_getStorageAt",
+            [address, position, blockNumber || "latest"]
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to retrieve storage: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Storage at position ${position} for ${address} at block "${blockNumber || "latest"}": ${rpcResult.result}`,
+                },
+            ],
+        };
+    }
+);
+
+// eth_getProof tool
+server.tool(
+    "get-proof",
+    "Get the account and storage values of the specified account including the Merkle-proof",
+    {
+        address: z
+            .string()
+            .length(42)
+            .startsWith("0x")
+            .describe("Ethereum address (0x...)"),
+        storageKeys: z
+            .array(z.string())
+            .describe("Array of storage-keys that should be proofed and included"),
+        blockNumber: z
+            .string()
+            .optional()
+            .default("latest")
+            .describe("Block number or tag (latest, earliest, pending, safe, finalized)"),
+    },
+    async ({ address, storageKeys, blockNumber }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
+            "eth_getProof",
+            [address, storageKeys, blockNumber || "latest"]
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to retrieve proof: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        const proof = rpcResult.result;
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Account Proof for ${address} (block ${blockNumber || "latest"}):\n\n` +
+                        `Account Proof: ${proof.accountProof.map((item: string) =>
+                            `${item}`
+                        ).join('\n')}\n\n` +
+                        `Balance: ${formatEth(BigInt(proof.balance))}\n` +
+                        `Nonce: ${parseInt(proof.nonce, 16)}\n` +
+                        `Code Hash: ${proof.codeHash}\n` +
+                        `Storage Hash: ${proof.storageHash}\n\n` +
+                        `Storage Proofs:\n${proof.storageProof.map((storage: any, index: number) =>
+                            `\nStorage Key ${index + 1}: ${storage.key}\n` +
+                            `Value: ${storage.value}\n` +
+                            `Proof Length: ${storage.proof.length} nodes`
+                        ).join('\n')}\n\n` +
+                        `Account Proof Length: ${proof.accountProof.length} nodes`,
                 },
             ],
         };
@@ -179,6 +336,99 @@ server.tool("get-gas-price", "Get the latest gas price", async ({ }) => {
         ],
     };
 });
+
+// eth_feeHistory tool
+server.tool(
+    "get-fee-history",
+    "Get historical gas information for a range of blocks",
+    {
+        blockCount: z
+            .number()
+            .min(1)
+            .max(1024)
+            .describe("Number of blocks in the requested range (1-1024)"),
+        newestBlock: z
+            .string()
+            .describe("Highest block number of the requested range (hex or tag: latest, earliest, pending, safe, finalized)"),
+        rewardPercentiles: z
+            .array(z.number())
+            .describe("List of percentile values with monotonic increase (e.g. [25, 75])"),
+    },
+    async ({ blockCount, newestBlock, rewardPercentiles }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
+            "eth_feeHistory",
+            [blockCount, newestBlock, rewardPercentiles]
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to retrieve fee history: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        const history = rpcResult.result;
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Fee History (${blockCount} blocks ending at ${newestBlock}):\n\n` +
+                        `Oldest Block: ${parseInt(history.oldestBlock, 16)}\n\n` +
+                        `Base Fee Per Gas:\n${history.baseFeePerGas.map((fee: string, index: number) =>
+                            `Block ${index + 1}: ${formatGwei(BigInt(fee))}`
+                        ).join('\n')}\n\n` +
+                        `Gas Used Ratio:\n${history.gasUsedRatio.map((ratio: number, index: number) =>
+                            `Block ${index + 1}: ${(ratio * 100).toFixed(2)}%`
+                        ).join('\n')}\n\n` +
+                        `Reward Percentiles (${rewardPercentiles.join(', ')}):\n${history.reward.map((rewards: string[], index: number) =>
+                            `Block ${index + 1}:\n${rewards.map((reward: string, rIndex: number) =>
+                                `  ${rewardPercentiles[rIndex]}th: ${formatGwei(BigInt(reward))}`
+                            ).join('\n')}`
+                        ).join('\n\n')}`,
+                },
+            ],
+        };
+    }
+);
+
+// eth_maxPriorityFeePerGas tool
+server.tool(
+    "get-max-priority-fee",
+    "Get the priority fee needed to be included in a block",
+    async () => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+            "eth_maxPriorityFeePerGas",
+            []
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to retrieve max priority fee: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        const maxPriorityFee = BigInt(rpcResult.result || "0x0");
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Max Priority Fee Per Gas: ${formatGwei(maxPriorityFee)} (${maxPriorityFee.toLocaleString()} wei)`,
+                },
+            ],
+        };
+    }
+);
 
 // eth_getTransactionByHash tool
 server.tool(
