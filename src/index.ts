@@ -1389,6 +1389,101 @@ server.tool(
   }
 );
 
+
+// eth_getBlockTransactionCountByHash
+server.tool(
+    "get-block-transaction-count-by-hash",
+    "Get the number of transactions in a block by its hash",
+    {
+        blockHash: z
+            .string()
+            .length(66)
+            .startsWith("0x")
+            .regex(/^0x[a-fA-F0-9]{64}$/)
+            .describe("Ethereum block hash (0x followed by 64 hex characters)"),
+    },
+    async ({ blockHash }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+            "eth_getBlockTransactionCountByHash",
+            [blockHash]
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to fetch transaction count: ${
+                            rpcResult?.error?.message || "Unknown error"
+                        }`,
+                    },
+                ],
+            };
+        }
+
+        const transactionCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Transaction count in block ${blockHash}: ${transactionCount}`,
+                },
+            ],
+        };
+    }
+);
+
+// eth_getBlockTransactionCountByNumber
+server.tool(
+  "get-block-transaction-count-by-number",
+  "Get the number of transactions in a block by its number",
+  {
+    blockNumber: z
+      .string()
+      .refine(
+        (val) =>
+          /^0x[a-fA-F0-9]+$/.test(val) ||
+          ["latest", "earliest", "pending"].includes(val),
+        {
+          message:
+            "Must be hex block number (0x...) or one of: latest, earliest, pending",
+        }
+      )
+      .describe("Block number (hex) or tag (latest/earliest/pending)"),
+  },
+  async ({ blockNumber }) => {
+    const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+      "eth_getBlockTransactionCountByNumber",
+      [blockNumber]
+    );
+
+    if (!rpcResult || rpcResult.error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch transaction count: ${
+              rpcResult?.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+      };
+    }
+
+    const transactionCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Transaction count in block ${blockNumber}: ${transactionCount}`,
+        },
+      ],
+    };
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
