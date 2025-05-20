@@ -12,7 +12,7 @@ const USER_AGENT = "ftm-mcp-server/1.0";
 async function makeEthRpcRequest<T>(
   method: string,
   params: any[],
-  id: number = 1
+  id: number = 1,
 ): Promise<T | null> {
   try {
     const response = await fetch(API_BASE_URL, {
@@ -79,13 +79,13 @@ server.tool(
       .optional()
       .default("latest")
       .describe(
-        "Block tag (e.g. latest, earliest, pending, or a hex block number)"
+        "Block tag (e.g. latest, earliest, pending, or a hex block number)",
       ),
   },
   async ({ address, blockNumber }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "eth_getBalance",
-      [address, blockNumber || "latest"]
+      [address, blockNumber || "latest"],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -114,14 +114,14 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_blockNumber tool
 server.tool("get-block-number", "Get the latest block number", async ({}) => {
   const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
     "eth_blockNumber",
-    []
+    [],
   );
 
   if (!rpcResult || rpcResult.error) {
@@ -155,7 +155,7 @@ server.tool("get-block-number", "Get the latest block number", async ({}) => {
 server.tool("get-gas-price", "Get the latest gas price", async ({}) => {
   const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
     "eth_gasPrice",
-    []
+    [],
   );
 
   if (!rpcResult || rpcResult.error) {
@@ -178,7 +178,7 @@ server.tool("get-gas-price", "Get the latest gas price", async ({}) => {
       {
         type: "text",
         text: `Latest gas price: ${formatGwei(
-          latestGasPrice
+          latestGasPrice,
         )} (${latestGasPrice.toLocaleString()} wei)`,
       },
     ],
@@ -200,7 +200,7 @@ server.tool(
   async ({ transactionHash }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
       "eth_getTransactionByHash",
-      [transactionHash]
+      [transactionHash],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -258,7 +258,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_getTransactionByBlockHashAndIndex tool
@@ -282,7 +282,7 @@ server.tool(
   async ({ blockHash, transactionIndex }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
       "eth_getTransactionByBlockHashAndIndex",
-      [blockHash, transactionIndex]
+      [blockHash, transactionIndex],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -344,7 +344,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_getTransactionByBlockNumberAndIndex tool
@@ -358,7 +358,7 @@ server.tool(
         (val) =>
           /^0x[a-fA-F0-9]+$/.test(val) ||
           ["latest", "earliest", "pending"].includes(val),
-        "Must be hex block number or 'latest', 'earliest', 'pending'"
+        "Must be hex block number or 'latest', 'earliest', 'pending'",
       )
       .describe("Block number (hex) or tag: 'latest', 'earliest', 'pending'"),
 
@@ -371,7 +371,7 @@ server.tool(
   async ({ blockNumber, transactionIndex }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
       "eth_getTransactionByBlockNumberAndIndex",
-      [blockNumber, transactionIndex]
+      [blockNumber, transactionIndex],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -433,7 +433,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_getTransactionByBlockNumberAndIndex tool
@@ -450,7 +450,7 @@ server.tool(
         {
           message:
             "Must be hex block number (0x...) or one of: latest, earliest, pending",
-        }
+        },
       )
       .describe("Block number (hex) or tag (latest/earliest/pending)"),
 
@@ -463,7 +463,7 @@ server.tool(
   async ({ blockNumber, transactionIndex }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
       "eth_getTransactionByBlockNumberAndIndex",
-      [blockNumber, transactionIndex]
+      [blockNumber, transactionIndex],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -527,7 +527,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_getTransactionReceipt tool
@@ -545,7 +545,7 @@ server.tool(
   async ({ transactionHash }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
       "eth_getTransactionReceipt",
-      [transactionHash]
+      [transactionHash],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -587,7 +587,7 @@ server.tool(
       contractAddress: txReceipt.contractAddress || "N/A",
       logs: txReceipt.logs.map(
         (log: any, index: number) =>
-          `Log ${index}: ${log.data} (Topics: ${log.topics.join(", ")})`
+          `Log ${index}: ${log.data} (Topics: ${log.topics.join(", ")})`,
       ),
     };
 
@@ -608,7 +608,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_sendRawTransaction tool
@@ -626,7 +626,7 @@ server.tool(
   async ({ rawTransaction }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "eth_sendRawTransaction",
-      [rawTransaction]
+      [rawTransaction],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -665,7 +665,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_call tool
@@ -718,7 +718,7 @@ server.tool(
         {
           message:
             "Must be hex block number or 'latest', 'earliest', 'pending'",
-        }
+        },
       )
       .default("latest")
       .describe("Block number or tag"),
@@ -726,13 +726,13 @@ server.tool(
   async ({ callData, block }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "eth_call",
-      [callData, block]
+      [callData, block],
     );
 
     if (!rpcResult || rpcResult.error) {
       const errorMessage = rpcResult?.error?.message || "Unknown error";
       const revertReason = errorMessage.match(
-        /reverted: (0x[0-9a-fA-F]+)/
+        /reverted: (0x[0-9a-fA-F]+)/,
       )?.[1];
 
       return {
@@ -770,7 +770,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // Helper function for eth_call to decode common return types
@@ -858,7 +858,7 @@ server.tool(
         {
           message:
             "Must be hex block number or 'latest', 'earliest', 'pending'",
-        }
+        },
       )
       .default("latest")
       .describe("Block number or tag"),
@@ -866,13 +866,13 @@ server.tool(
   async ({ transaction, block }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "eth_estimateGas",
-      [transaction, block]
+      [transaction, block],
     );
 
     if (!rpcResult || rpcResult.error) {
       const errorMessage = rpcResult?.error?.message || "Unknown error";
       const revertReason = errorMessage.match(
-        /reverted: (0x[0-9a-fA-F]+)/
+        /reverted: (0x[0-9a-fA-F]+)/,
       )?.[1];
 
       return {
@@ -909,12 +909,12 @@ server.tool(
               Hex: ${gasEstimateHex}
               Decimal: ${gasEstimate.toLocaleString()}
               Recommended gas limit: ${Math.ceil(
-                gasEstimate * 1.2
+                gasEstimate * 1.2,
               ).toLocaleString()} (+20% buffer)`,
         },
       ],
     };
-  }
+  },
 );
 
 // eth_getLogs tool
@@ -950,7 +950,7 @@ server.tool(
 
     const rpcResult = await makeEthRpcRequest<{ result?: any[]; error?: any }>(
       "eth_getLogs",
-      [filter]
+      [filter],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -985,7 +985,7 @@ server.tool(
         }\nTopics: ${log.topics.join(", ")}\nData: ${log.data}`,
       })),
     };
-  }
+  },
 );
 
 // eth_newFilter tool
@@ -1045,7 +1045,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_newBlockFilter tool
@@ -1056,7 +1056,7 @@ server.tool(
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "eth_newBlockFilter",
       [],
-      67
+      67,
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -1080,7 +1080,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_newPendingTransactionFilter tool
@@ -1091,7 +1091,7 @@ server.tool(
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "eth_newBlockFilter",
       [],
-      67
+      67,
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -1115,7 +1115,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_getFilterChanges tool
@@ -1127,13 +1127,13 @@ server.tool(
       .string()
       .min(1)
       .describe(
-        "The filter ID returned from eth_newFilter, eth_newBlockFilter, or eth_newPendingTransactionFilter"
+        "The filter ID returned from eth_newFilter, eth_newBlockFilter, or eth_newPendingTransactionFilter",
       ),
   },
   async ({ filterId }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: any[]; error?: any }>(
       "eth_getFilterChanges",
-      [filterId]
+      [filterId],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -1168,7 +1168,7 @@ server.tool(
         text: `Change ${idx + 1}:\n${JSON.stringify(change, null, 2)}`,
       })),
     };
-  }
+  },
 );
 
 // eth_getFilterLogs tool
@@ -1180,13 +1180,13 @@ server.tool(
       .string()
       .min(1)
       .describe(
-        "The filter ID returned from eth_newFilter, eth_newBlockFilter, or eth_newPendingTransactionFilter"
+        "The filter ID returned from eth_newFilter, eth_newBlockFilter, or eth_newPendingTransactionFilter",
       ),
   },
   async ({ filterId }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: any[]; error?: any }>(
       "eth_getFilterLogs",
-      [filterId]
+      [filterId],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -1221,7 +1221,7 @@ server.tool(
         text: `Log ${idx + 1}:\n${JSON.stringify(log, null, 2)}`,
       })),
     };
-  }
+  },
 );
 
 // eth_uninstallFilter tool
@@ -1260,7 +1260,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // eth_submitWork tool
@@ -1301,7 +1301,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // web3_clientVersion tool
@@ -1311,7 +1311,7 @@ server.tool(
   async () => {
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "web3_clientVersion",
-      []
+      [],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -1335,7 +1335,7 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
 
 // web3_sha3 tool
@@ -1362,7 +1362,7 @@ server.tool(
 
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "web3_sha3",
-      [data]
+      [data],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -1386,52 +1386,51 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
-
 
 // eth_getBlockTransactionCountByHash
 server.tool(
-    "get-block-transaction-count-by-hash",
-    "Get the number of transactions in a block by its hash",
-    {
-        blockHash: z
-            .string()
-            .length(66)
-            .startsWith("0x")
-            .regex(/^0x[a-fA-F0-9]{64}$/)
-            .describe("Ethereum block hash (0x followed by 64 hex characters)"),
-    },
-    async ({ blockHash }) => {
-        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
-            "eth_getBlockTransactionCountByHash",
-            [blockHash]
-        );
+  "get-block-transaction-count-by-hash",
+  "Get the number of transactions in a block by its hash",
+  {
+    blockHash: z
+      .string()
+      .length(66)
+      .startsWith("0x")
+      .regex(/^0x[a-fA-F0-9]{64}$/)
+      .describe("Ethereum block hash (0x followed by 64 hex characters)"),
+  },
+  async ({ blockHash }) => {
+    const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+      "eth_getBlockTransactionCountByHash",
+      [blockHash],
+    );
 
-        if (!rpcResult || rpcResult.error) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `Failed to fetch transaction count: ${
-                            rpcResult?.error?.message || "Unknown error"
-                        }`,
-                    },
-                ],
-            };
-        }
-
-        const transactionCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
-
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `Transaction count in block ${blockHash}: ${transactionCount}`,
-                },
-            ],
-        };
+    if (!rpcResult || rpcResult.error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch transaction count: ${
+              rpcResult?.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+      };
     }
+
+    const transactionCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Transaction count in block ${blockHash}: ${transactionCount}`,
+        },
+      ],
+    };
+  },
 );
 
 // eth_getBlockTransactionCountByNumber
@@ -1448,14 +1447,14 @@ server.tool(
         {
           message:
             "Must be hex block number (0x...) or one of: latest, earliest, pending",
-        }
+        },
       )
       .describe("Block number (hex) or tag (latest/earliest/pending)"),
   },
   async ({ blockNumber }) => {
     const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
       "eth_getBlockTransactionCountByNumber",
-      [blockNumber]
+      [blockNumber],
     );
 
     if (!rpcResult || rpcResult.error) {
@@ -1481,8 +1480,95 @@ server.tool(
         },
       ],
     };
-  }
+  },
 );
+
+// eth_getUncleCountByBlockHash
+server.tool(
+  "get-uncle-count-by-block-hash",
+  "Get the number of uncles in a block by its hash",
+  {
+    blockHash: z
+      .string()
+      .length(66)
+      .startsWith("0x")
+      .regex(/^0x[a-fA-F0-9]{64}$/)
+      .describe("Ethereum block hash (0x followed by 64 hex characters)"),
+  },
+  async ({ blockHash }) => {
+    const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+      "eth_getUncleCountByBlockHash",
+      [blockHash],
+    );
+
+    if (!rpcResult || rpcResult.error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch uncle count: ${
+              rpcResult?.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+      };
+    }
+
+    const uncleCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Uncle count in block ${blockHash}: ${uncleCount}`,
+        },
+      ],
+    };
+  },
+);
+
+// eth_getUncleCountByBlockNumber
+server.tool(
+    "get-uncle-count-by-block-number",
+    "Get the number of uncles in a block by its number",
+    {
+        blockNumber: z
+        .string()
+        .startsWith("0x")
+        .regex(/^0x[a-fA-F0-9]+$/)
+        .describe("Block number (hex) or tag (latest/earliest/pending)"),
+    },
+    async ({ blockNumber }) => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+        "eth_getUncleCountByBlockNumber",
+        [blockNumber],
+        );
+    
+        if (!rpcResult || rpcResult.error) {
+        return {
+            content: [
+            {
+                type: "text",
+                text: `Failed to fetch uncle count: ${
+                rpcResult?.error?.message || "Unknown error"
+                }`,
+            },
+            ],
+        };
+        }
+    
+        const uncleCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
+    
+        return {
+        content: [
+            {
+            type: "text",
+            text: `Uncle count in block ${blockNumber}: ${uncleCount}`,
+            },
+        ],
+        };
+    },
+    );
 
 // Start the server
 async function main() {
