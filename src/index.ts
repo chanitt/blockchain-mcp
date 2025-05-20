@@ -1529,46 +1529,185 @@ server.tool(
 
 // eth_getUncleCountByBlockNumber
 server.tool(
-    "get-uncle-count-by-block-number",
-    "Get the number of uncles in a block by its number",
-    {
-        blockNumber: z
-        .string()
-        .startsWith("0x")
-        .regex(/^0x[a-fA-F0-9]+$/)
-        .describe("Block number (hex) or tag (latest/earliest/pending)"),
-    },
-    async ({ blockNumber }) => {
-        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
-        "eth_getUncleCountByBlockNumber",
-        [blockNumber],
-        );
-    
-        if (!rpcResult || rpcResult.error) {
-        return {
-            content: [
-            {
-                type: "text",
-                text: `Failed to fetch uncle count: ${
-                rpcResult?.error?.message || "Unknown error"
-                }`,
-            },
-            ],
-        };
-        }
-    
-        const uncleCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
-    
-        return {
-        content: [
-            {
-            type: "text",
-            text: `Uncle count in block ${blockNumber}: ${uncleCount}`,
-            },
-        ],
-        };
-    },
+  "get-uncle-count-by-block-number",
+  "Get the number of uncles in a block by its number",
+  {
+    blockNumber: z
+      .string()
+      .startsWith("0x")
+      .regex(/^0x[a-fA-F0-9]+$/)
+      .describe("Block number (hex) or tag (latest/earliest/pending)"),
+  },
+  async ({ blockNumber }) => {
+    const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+      "eth_getUncleCountByBlockNumber",
+      [blockNumber],
     );
+
+    if (!rpcResult || rpcResult.error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch uncle count: ${
+              rpcResult?.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+      };
+    }
+
+    const uncleCount = parseInt(rpcResult.result ?? "0", 16); // null is 0
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Uncle count in block ${blockNumber}: ${uncleCount}`,
+        },
+      ],
+    };
+  },
+);
+
+function formatBlockInfo(block: any) {
+  return {
+    baseFeePerGas: block.baseFeePerGas,
+    difficulty: parseInt(block.difficulty, 16),
+    extraData: block.extraData,
+    gasLimit: formatGwei(BigInt(block.gasLimit)), // gasLimit is in wei
+    gasUsed: formatGwei(BigInt(block.gasUsed)), // gasUsed is in wei
+    hash: block.hash,
+    logsBloom: block.logsBloom,
+    miner: block.miner,
+    mixHash: block.mixHash,
+    nonce: block.nonce,
+    number: parseInt(block.number, 16), // show block number in decimal
+    parentHash: block.parentHash,
+    receiptsRoot: block.receiptsRoot,
+    sha3Uncles: block.sha3Uncles,
+    size: parseInt(block.size, 16),
+    stateRoot: block.stateRoot,
+    timestamp: new Date(parseInt(block.timestamp, 16) * 1000).toISOString(),
+    transactionsRoot: block.transactionsRoot,
+    // left for implementations
+    // transactions, uncles, withdrawals (format)
+  };
+}
+
+// default transaction_details_flag is false for now
+// eth_getBlockByHash tool
+server.tool(
+  "get-block-by-hash",
+  "Get block by hash",
+  {
+    blockHash: z
+      .string()
+      .length(66)
+      .startsWith("0x")
+      .regex(/^0x[a-fA-F0-9]{64}$/)
+      .describe("Ethereum block hash (0x followed by 64 hex characters)"),
+    transactionDetails: z
+      .boolean()
+      .default(false)
+      .describe("Include transaction details"),
+  },
+  async ({ blockHash, transactionDetails }) => {
+    const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
+      "eth_getBlockByHash",
+      [blockHash, transactionDetails],
+    );
+
+    if (!rpcResult || rpcResult.error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch block: ${
+              rpcResult?.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+      };
+    }
+
+    const block = formatBlockInfo(rpcResult.result);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Block Details:
+                Hash: ${block.hash}
+                Number: ${block.number}
+                Parent Hash: ${block.parentHash}
+                Timestamp: ${block.timestamp}
+                Miner: ${block.miner}
+                Gas Limit: ${block.gasLimit}
+                Gas Used: ${block.gasUsed}
+                Base Fee Per Gas: ${block.baseFeePerGas}
+                Difficulty: ${block.difficulty}`,
+        },
+      ],
+    };
+  },
+);
+
+// eth_getBlockByNumber tool
+server.tool(
+  "get-block-by-number",
+  "Get block by number",
+  {
+    blockNumber: z
+      .string()
+      .startsWith("0x")
+      .regex(/^0x[a-fA-F0-9]+$/)
+      .describe("Block number (hex) or tag (latest/earliest/pending)"),
+    transactionDetails: z
+      .boolean()
+      .default(false)
+      .describe("Include transaction details"),
+  },
+  async ({ blockNumber, transactionDetails }) => {
+    const rpcResult = await makeEthRpcRequest<{ result?: any; error?: any }>(
+      "eth_getBlockByNumber",
+      [blockNumber, transactionDetails],
+    );
+
+    if (!rpcResult || rpcResult.error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to fetch block: ${
+              rpcResult?.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+      };
+    }
+
+    const block = formatBlockInfo(rpcResult.result);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Block Details:
+                    Hash: ${block.hash}
+                    Number: ${block.number}
+                    Parent Hash: ${block.parentHash}
+                    Timestamp: ${block.timestamp}
+                    Miner: ${block.miner}
+                    Gas Limit: ${block.gasLimit}
+                    Gas Used: ${block.gasUsed}
+                    Base Fee Per Gas: ${block.baseFeePerGas}
+                    Difficulty: ${block.difficulty}`,
+        },
+      ],
+    };
+  },
+);
 
 // Start the server
 async function main() {
