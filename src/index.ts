@@ -1618,6 +1618,272 @@ server.tool(
     }
 );
 
+// eth_chainId tool
+server.tool(
+    "get-chain-id",
+    "Fetch the chain ID of the current Ethereum network",
+    {},
+    async () => {
+        const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+            "eth_chainId",
+            []
+        );
+
+        if (!rpcResult || rpcResult.error) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to fetch chain ID: ${rpcResult?.error?.message || "Unknown error"}`,
+                    },
+                ],
+            };
+        }
+
+        const chainId = parseInt(rpcResult.result!, 16); // Convert hex to decimal
+
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: `Chain ID: ${chainId} (hex: ${rpcResult.result})`,
+                },
+            ],
+        };
+    }
+);
+
+// net_version tool
+server.tool(
+  "get-network-id",
+  "Fetch the network ID using net_version",
+  {},
+  async () => {
+      const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+          "net_version",
+          []
+      );
+
+      if (!rpcResult || rpcResult.error) {
+          return {
+              content: [
+                  {
+                      type: "text",
+                      text: `Failed to fetch network ID: ${rpcResult?.error?.message || "Unknown error"}`,
+                  },
+              ],
+          };
+      }
+
+      return {
+          content: [
+              {
+                  type: "text",
+                  text: `Network ID: ${rpcResult.result}`,
+              },
+          ],
+      };
+  }
+);
+
+// net_listening tool
+server.tool(
+  "is-network-listening",
+  "Check if the Ethereum node is listening for network connections",
+  {},
+  async () => {
+      const rpcResult = await makeEthRpcRequest<{ result?: boolean; error?: any }>(
+          "net_listening",
+          []
+      );
+
+      if (!rpcResult || rpcResult.error) {
+          return {
+              content: [
+                  {
+                      type: "text",
+                      text: `Failed to check network listening status: ${rpcResult?.error?.message || "Unknown error"}`,
+                  },
+              ],
+          };
+      }
+
+      const statusText = rpcResult.result
+          ? "✅ The node is listening for network connections."
+          : "❌ The node is not listening for network connections.";
+
+      return {
+          content: [
+              {
+                  type: "text",
+                  text: statusText,
+              },
+          ],
+      };
+  }
+);
+
+// net_peerCount tool
+server.tool(
+  "get-peer-count",
+  "Fetch the number of peers currently connected to the Ethereum node",
+  {},
+  async () => {
+      const rpcResult = await makeEthRpcRequest<{ result?: string; error?: any }>(
+          "net_peerCount",
+          []
+      );
+
+      if (!rpcResult || rpcResult.error) {
+          return {
+              content: [
+                  {
+                      type: "text",
+                      text: `Failed to fetch peer count: ${rpcResult?.error?.message || "Unknown error"}`,
+                  },
+              ],
+          };
+      }
+
+      // The result is a hex string, so convert it to a decimal number
+      const peerCount = parseInt(rpcResult.result!, 16);
+
+      return {
+          content: [
+              {
+                  type: "text",
+                  text: `Peer Count: ${peerCount} (${rpcResult.result} in hex)`,
+              },
+          ],
+      };
+  }
+);
+
+// eth_syncing tool
+server.tool(
+  "get-sync-status",
+  "Check if the Ethereum node is syncing and return sync progress if applicable",
+  {},
+  async () => {
+      const rpcResult = await makeEthRpcRequest<{
+          result?: false | {
+              startingBlock: string;
+              currentBlock: string;
+              highestBlock: string;
+          };
+          error?: any;
+      }>("eth_syncing", []);
+
+      if (!rpcResult || rpcResult.error || typeof rpcResult.result === "undefined") {
+          return {
+              content: [
+                  {
+                      type: "text",
+                      text: `Failed to check sync status: ${rpcResult?.error?.message || "Invalid or undefined response from node."}`,
+                  },
+              ],
+          };
+      }
+
+      const result = rpcResult.result;
+
+      // If not syncing
+      if (result === false) {
+          return {
+              content: [
+                  {
+                      type: "text",
+                      text: "✅ The node is fully synced.",
+                  },
+              ],
+          };
+      }
+
+      // If syncing
+      return {
+          content: [
+              {
+                  type: "text",
+                  text: `🔄 Node is syncing...\n\nStarting Block: ${parseInt(result.startingBlock, 16)}\nCurrent Block: ${parseInt(result.currentBlock, 16)}\nHighest Block: ${parseInt(result.highestBlock, 16)}`,
+              },
+          ],
+      };
+  }
+);
+
+// eth_mining tool
+server.tool(
+  "is-mining",
+  "Check if the Ethereum node is currently mining",
+  {},
+  async () => {
+      const rpcResult = await makeEthRpcRequest<{
+          result?: boolean;
+          error?: any;
+      }>("eth_mining", []);
+
+      if (!rpcResult || rpcResult.error || typeof rpcResult.result === "undefined") {
+          return {
+              content: [
+                  {
+                      type: "text",
+                      text: `Failed to check mining status: ${rpcResult?.error?.message || "Invalid or undefined response from node."}`,
+                  },
+              ],
+          };
+      }
+
+      const isMining = rpcResult.result;
+
+      return {
+          content: [
+              {
+                  type: "text",
+                  text: isMining
+                      ? "⛏️ The node is currently mining."
+                      : "❌ The node is not mining.",
+              },
+          ],
+      };
+  }
+);
+
+// eth_hashrate tool
+server.tool(
+  "get-hashrate",
+  "Fetch the current mining hashrate of the Ethereum node",
+  {},
+  async () => {
+      const rpcResult = await makeEthRpcRequest<{
+          result?: string; // The result is a hex string representing hashrate
+          error?: any;
+      }>("eth_hashrate", []);
+
+      if (!rpcResult || rpcResult.error || typeof rpcResult.result === "undefined") {
+          return {
+              content: [
+                  {
+                      type: "text",
+                      text: `Failed to fetch hashrate: ${rpcResult?.error?.message || "Invalid or undefined response from node."}`,
+                  },
+              ],
+          };
+      }
+
+      // Convert the hashrate from hex string to decimal
+      const hashrate = parseInt(rpcResult.result, 16);
+
+      return {
+          content: [
+              {
+                  type: "text",
+                  text: `⛏️ Current Mining Hashrate: ${hashrate} H/s`,
+              },
+          ],
+      };
+  }
+);
+
 // Start the server
 async function main() {
     const transport = new StdioServerTransport();
